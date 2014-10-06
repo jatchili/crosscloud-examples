@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Crosscloud comment tree</title>
+<style>
+    * {
+        font-family: Helvetica, sans-serif;
+    }
+
+    .author {
+        font-weight: bold;
+        color: green;
+        display: block;
+    }
+
+    .comment {
+        border: 1px solid black;
+        padding: 10px;
+        margin-top: 10px;
+    }
+</style>
+</head>
+
+<body>
+    <h1>Crosscloud comment tree</h1>
+    <p>This is a weird convoluted comment tree system. Each user's comments are stored on that user's own pod, but when someone replies to it, not only do they POST the new comment to their pod, but they also PUT a reference to it into the "children" list of the parent comment. I'm not sure if you'd ever actually want to do this.</p>
+    <p>your username: <input type="text" value="demo" id="usernameInput"></input></p>
+    <div id="main" class="comment"></div>
+</body>
+
+<script src="../jquery-1.11.1.min.js"></script>
+
+<script>
+function renderIntoContainer($container, commentUrl) {
+    $.get(commentUrl, function(comment) {
+        if (!comment) {
+            return;
+        }
+        if ("string" === typeof comment) {
+            comment = JSON.parse(comment);
+        }
+        $container.append($("<a></a>").attr({
+            "class":"author",
+            "href" :comment._id,
+            "target": "_blank"
+        }).text(comment.author))
+        $container.append($("<div></div>").attr("class","content").text(comment.text))
+        $container.append($("<button>reply</button>").on("click", function(){
+            var replyText = prompt("What do you have to say?");
+            if (replyText) {
+                postReply(comment, replyText);
+            }
+        }));
+        var children = comment.children;
+        for (var i=0; i<children.length; i++) {
+            var child = children[i];
+            var $childContainer = $("<div></div>").attr("class","comment")
+            $container.append($childContainer);
+            renderIntoContainer($childContainer, child);
+        }
+    });
+}
+
+
+function postReply(parent, text) {
+    var username = $("#usernameInput").val().replace(/[^A-Za-z0-9]/g,"");
+    username = username.toLowerCase();
+    if (!username) {
+        alert("Invalid username! "+username)
+        return;
+    }
+    var reply = {
+        text: text,
+        author: username,
+        parent: parent._id,
+        children: []
+    };
+    var destination = "http://"+username+".fakepods.com";
+    $.ajax({
+        url: destination,
+        type: "POST",
+        data: JSON.stringify(reply),
+        contentType: "application/json",
+        success: function(response, status, jqxhr){
+            var location = jqxhr.getResponseHeader("Location");
+            parent.children.push(location);
+            $.ajax({
+                url: parent._id,
+                type: "PUT",
+                data: JSON.stringify(parent),
+                contentType: "application/json",
+                success: function(data) {
+                    // You have to GET /_active, because for some reason the _id fields aren't inserted until you do this.
+                    $.get(destination+"/_active", function(){
+                        renderTree();
+                    });
+                }
+            });
+        }
+    });
+}
+
+function renderTree() {
+    $("#main").empty();
+    renderIntoContainer($("#main"), "http://jatchili.fakepods.com/r16");
+}
+
+renderTree();
+
+
+
+</script>
+</html>
