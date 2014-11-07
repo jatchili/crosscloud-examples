@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Rostrum | insert slogan here</title>
+	<script src="../jquery-1.11.1.min.js"></script>
+	<script src="../crosscloud.js"></script>
+
+
+	<style>
+	    .author {
+	        font-weight: bold;
+	        color: green;
+	        display: block;
+	    }
+
+	    .comment {
+	        border: 1px solid black;
+	        padding: 10px;
+	        margin-top: 10px;
+	    }
+	</style>
+</head>
+
+<body>
+
+	<h1><a target="_blank" href="#">Home</a></h1>
+
+	<div class="page" id="main">
+		<!--<h1>Logged in as: <span class="myUsername"></span></h1>-->
+		<h3><a target="_blank" href="#profile">Manage profile</a></h3>
+		<h3 id="feedHeading" style="display:none;">Feed:</h3>
+		<ul id="feed"></ul>
+	</div>
+
+	<div class="page" id="profile">
+		<h1>This is your profile page! <span class="myUsername"></span></h1>
+		<h2>You are subscribed to:</h2>
+		<ul id="mySubscriptionList"></ul>
+	</div>
+
+	<div class="page" id="user">
+		<h1><span id="viewingUsername"></span>'s profile</h1>
+		<h2>This user is subscribed to:</h2>
+		<ul id="viewingSubscriptionList"></ul>
+	</div>
+
+	<div class="page" id="forum">
+		<h1>Viewing forum: <span class="viewingForumName"></span></h1>
+		<input type="text" id="myThreadTitle" placeholder="title..." /><br/>
+		<textarea id="myThreadText" placeholder="text..."></textarea><br/>
+		<button onclick="submitPost()">post</button>
+		<hr/>
+		<ul id="roots"></ul>
+	</div>
+
+	<div class="page" id="thread">
+		<h1>Viewing forum: <span class="viewingForumName"></span></h1>
+		<h2>Viewing thread: <span class="viewingThreadTitle"></span></h2>
+		<div id="threadRoot"></div>
+	</div>
+</body>
+
+<script src="rostrum.js"></script>
+
+</html>
