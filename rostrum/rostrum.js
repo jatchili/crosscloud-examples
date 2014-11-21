@@ -21,14 +21,17 @@ function navigate(windowHash) {
 		if (forumName.indexOf("/") === -1) {
 			getForumPage(forumName);
 			showPage("forum");
-		} else {
+		}/* else {
 			forumName = forumName.split("/");
 			var threadID = forumName[1];
 			forumName = forumName[0]; //TODO: This is confusing
 			getThreadPage(forumName, threadID);
 			showPage("thread");
-		}
-		
+		}*/
+	} else if (windowHash.substring(0,8) === "#thread/") {
+		var threadID = windowHash.substring(8);
+		getThreadPage(threadID);
+		showPage("thread");
 	} else {
 		getMainPage();
 		showPage("main");
@@ -50,7 +53,7 @@ function getForumPage(forumName) {
 	$(".viewingForumName").text(forumName);
 	currentForumURL = forumName;
 
-	$.get("http://"+forumName+"/_active", function(res) {
+	/*$.get("http://"+forumName+"/_active", function(res) {
 		var response = JSON.parse(res);
 		var members = response._members;
 		if (members) {
@@ -63,13 +66,20 @@ function getForumPage(forumName) {
 				}
 			}
 		}
-	});
+	});*/
 
-	/*pod.query().filter( { type: "post", is_root: true } )
+	pod.query().filter( { type: "post", is_root: true, forum: forumName } )
 		.onAllResults(renderRoots).start();
 	function renderRoots(roots) {
-		
- 	}*/
+		for (var i=0; i<roots.length; i++) {
+			var root = roots[i];
+			if (root.type === "post" && root.is_root) {
+				$("#roots").append('<li><a target="_blank" href="#user/'+
+					root.author+'">'+root.author+'</a>: <a target="_blank" href="'+
+					'#thread/'+root._id+'">'+root.title+'</a></li>');
+			}
+		}
+ 	}
 }
 
 function extractID(_id) {
@@ -94,11 +104,20 @@ function addThread(forumURL, title, text) {
 		title: title,
 		text: text,
 		parent: null,
-		children: [],
 		is_root: true,
+		forum: forumURL,
 		type: "post"
 	}
-    $.ajax({
+	pod.push(post, function(result){
+		//console.log("SUCCESSFULLY PUSHED!", a,b,c);
+		result.thread_id = result._id;
+		pod.push(result, function(){
+			window.location.reload();
+		})
+		//Add the ID as the thread_id
+		//window.location.reload();
+	});
+    /*$.ajax({
         url: destination,
         type: "POST",
         data: JSON.stringify(post),
@@ -119,14 +138,79 @@ function addThread(forumURL, title, text) {
                     });
                 }
             });*/
-        }
-    });
+        /*}
+    });*/
 }
 
 
-function getThreadPage(forumName, threadID) {
-	$(".viewingForumName").text(forumName);
-	currentForumURL = forumName;
+function getThreadPage(threadID) {
+	//$(".viewingForumName").text(forumName);
+	//currentForumURL = forumName;
+	pod.query().filter( {
+		type: "post",
+		//forum: "http://"+forumName,
+		thread_id: threadID
+	}).onAllResults(handleThread).start();
+
+
+	function handleThread(posts) {
+		//Step 1: Index by ID
+		var idMap = {};
+		for (var i=0; i<posts.length; i++) {
+			var post = posts[i];
+			idMap[post._id] = post;
+		}
+
+		currentForumURL = idMap[threadID].forum;
+		$(".viewingForumName").text(currentForumURL);
+
+		//Step 2: Build the children lists
+		for (var i=0; i<posts.length; i++) {
+			var post = posts[i];
+			if (post.parent) {
+				if (idMap[post.parent].children) {
+					idMap[post.parent].children.push(post._id);
+				} else {
+					idMap[post.parent].children = [post._id];
+				}
+			}
+		}
+
+		//Step 3: Render
+
+		function renderIntoContainer(post, $container) {
+			$container.append($("<a></a>").attr({
+	            "class":"author",
+	            "href" :"#user/"+post.author,
+	            "target": "_blank"
+	        }).text(post.author))
+	        $container.append($("<div></div>").attr("class","content").text(post.text))
+	        $container.append($("<button>reply</button>").on("click", function(){
+	            var replyText = prompt("What do you have to say?");
+	            if (replyText) {
+	            	//alert("Make reply! "+replyText);
+	                postReply(post, replyText, threadID);
+	            }
+	        }));
+	        var children = post.children;
+	        if (children) {
+		        for (var i=0; i<children.length; i++) {
+		            var child = idMap[children[i]];
+		            if (child) { 	
+		            	var $childContainer = $("<div></div>").attr("class","comment")
+		            	$container.append($childContainer);
+		            	//console.log("CHILD!", child, children[i], idMap);
+		            	renderIntoContainer(child, $childContainer);
+		            }
+		        }
+		    }
+	    }
+
+	    renderIntoContainer(idMap[threadID], $("#threadRoot"));
+	}
+
+
+
 	/*pod.query().filter( { type: "post", _id: "http://"+forumName+"/"+threadID } ) //TODO: Make this more robust
 		.onAllResults(recordRoot).start();
 	pod.query().filter( { type: "post", thread_id: threadID } )
@@ -157,7 +241,7 @@ function getThreadPage(forumName, threadID) {
 		}
 	}*/
 
-	var idMap = {};
+	/*var idMap = {};
 	$.get("http://"+forumName+"/_active", function(res) {
 		var response = JSON.parse(res);
 		var members = response._members;
@@ -178,9 +262,9 @@ function getThreadPage(forumName, threadID) {
 	function goon() {
 		console.log("GOING ON!", idMap);
 		renderIntoContainer(idMap[threadID], $("#threadRoot"));
-	}
+	}*/
 
-	function renderIntoContainer(post, $container) {
+	/*function renderIntoContainer(post, $container) {
 		$container.append($("<a></a>").attr({
             "class":"author",
             "href" :"#user/"+post.author,
@@ -203,8 +287,7 @@ function getThreadPage(forumName, threadID) {
             	//console.log("CHILD!", child, children[i], idMap);
             	renderIntoContainer(child, $childContainer);
             }
-        }
-	}
+        }*/
 }
 
 function postReply(parent, replyText, threadID) {
@@ -212,12 +295,15 @@ function postReply(parent, replyText, threadID) {
     	type: "post",
         text: replyText,
         author: getMyUsername(),
-        parent: extractID(parent._id),
+        parent: parent._id,
         thread_id: threadID,
-        children: []
+        forum: "http://"+currentForumURL //TODO: robustness
     };
-    var destination = "http://"+currentForumURL; //TODO: robustness
-    $.ajax({
+    pod.push(reply, function(){
+
+    	window.location.reload(); // TODO: efficiency
+    })
+    /*$.ajax({
         url: destination,
         type: "POST",
         data: JSON.stringify(reply),
@@ -238,7 +324,7 @@ function postReply(parent, replyText, threadID) {
                 }
             });
         }
-    });
+    });*/
 }
 
 function getMyUsername() {
@@ -260,6 +346,11 @@ function getUserPage(username) {
 					member.url+'">' + member.url + '</a> <button onclick="addSubscription(this)">subscribe</button></li>';
 					$("#viewingSubscriptionList").append(item);
 				}
+				if (member.type === "post" && member.is_root) {
+					var item = '<li><a target="_blank" href="#thread/'+
+					member._id+'">' + member.title + '</a></li>';
+					$("#theirPostsList").append(item);
+				}				
 			}
 		}
 	});
@@ -301,8 +392,10 @@ function removeSubscription(button) {
 
 function getMainPage() {
 
+	var owner = pod.getUserId();
+	console.log("OWNER!", owner)
 
-	pod.query().filter( { type: "subscription", _owner: pod.getUserId() } )
+	pod.query().filter( { type: "subscription", _owner: owner } )
 		.onAllResults(handleSubscriptions).start();
 
 
@@ -316,7 +409,25 @@ function getMainPage() {
 	}
 
 	function getPostsFrom(forumName) {
-		$.get("http://"+forumName+"/_active", function(res) {
+		pod.query().filter( {
+			type: "post",
+			forum: forumName,
+			is_root: true
+		}).onAllResults(handlePosts).start();
+
+		function handlePosts(posts) {
+			console.log("GOT POSTS!", posts);
+			for (var i=0; i<posts.length; i++) {
+				var root = posts[i];
+				$("#feed").append('<li><a target="_blank" href="#user/'+
+					root.author+'">'+root.author+'</a>: <a target="_blank" href="#thread/'
+					+root._id+'">'+root.title+'</a> [<a target="_blank" href="'+
+					'#forum/'+forumName+'">'+forumName+'</a>]</li>'
+				);
+			}
+		}
+
+		/*$.get("http://"+forumName+"/_active", function(res) {
 			
 			var response = JSON.parse(res);
 			var members = response._members;
@@ -331,7 +442,7 @@ function getMainPage() {
 					}
 				}
 			}
-		});
+		});*/
 	}
 }
 
